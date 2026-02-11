@@ -93,13 +93,43 @@ export const deleteOffice = async (req: AuthRequest, res: Response) => {
 };
 
 // Candidate Management
+// export const createCandidate = async (req: AuthRequest, res: Response) => {
+//   try {
+//     const { fullName, office, level, department, manifesto } = req.body;
+    
+//     let photoUrl = '';
+//     if (req.file) {
+//       photoUrl = await uploadToCloudinary(req.file.buffer, 'nacos-voting/candidates');
+//     }
+
+//     const candidate = new Candidate({
+//       fullName,
+//       photoUrl,
+//       office,
+//       level,
+//       department,
+//       manifesto
+//     });
+
+//     await candidate.save();
+//     res.status(201).json({ message: 'Candidate created', candidate });
+//   } catch (error: any) {
+//     res.status(500).json({ message: 'Failed to create candidate', error: error.message });
+//   }
+// };
+
 export const createCandidate = async (req: AuthRequest, res: Response) => {
   try {
     const { fullName, office, level, department, manifesto } = req.body;
     
     let photoUrl = '';
     if (req.file) {
-      photoUrl = await uploadToCloudinary(req.file.buffer, 'nacos-voting/candidates');
+      // Convert image to base64 and store directly
+      const base64Image = req.file.buffer.toString('base64');
+      photoUrl = `data:${req.file.mimetype};base64,${base64Image}`;
+    } else {
+      // Use placeholder if no image provided
+      photoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&size=400&background=16a34a&color=fff`;
     }
 
     const candidate = new Candidate({
@@ -107,13 +137,14 @@ export const createCandidate = async (req: AuthRequest, res: Response) => {
       photoUrl,
       office,
       level,
-      department,
+      department: level === 'department' ? department : undefined,
       manifesto
     });
 
     await candidate.save();
     res.status(201).json({ message: 'Candidate created', candidate });
   } catch (error: any) {
+    console.error('Create candidate error:', error);
     res.status(500).json({ message: 'Failed to create candidate', error: error.message });
   }
 };
