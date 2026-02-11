@@ -1,0 +1,286 @@
+import { Response } from 'express';
+import Department from '../models/Department';
+import Office from '../models/Office';
+import Candidate from '../models/Candidate';
+import Vote from '../models/Vote';
+import User from '../models/User';
+import ElectionSettings from '../models/ElectionSettings';
+import { AuthRequest } from '../middleware/auth';
+import { uploadToCloudinary } from '../utils/upload';
+
+// Department Management
+export const createDepartment = async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, shortName, isActive } = req.body;
+    const department = new Department({ name, shortName, isActive });
+    await department.save();
+    res.status(201).json({ message: 'Department created', department });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to create department', error: error.message });
+  }
+};
+
+export const getDepartments = async (req: AuthRequest, res: Response) => {
+  try {
+    const departments = await Department.find();
+    res.json({ departments });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to fetch departments', error: error.message });
+  }
+};
+
+export const updateDepartment = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    const department = await Department.findByIdAndUpdate(id, updates, { new: true });
+    res.json({ message: 'Department updated', department });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to update department', error: error.message });
+  }
+};
+
+export const deleteDepartment = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    await Department.findByIdAndDelete(id);
+    res.json({ message: 'Department deleted' });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to delete department', error: error.message });
+  }
+};
+
+// Office Management
+export const createOffice = async (req: AuthRequest, res: Response) => {
+  try {
+    const { title, level, department, order } = req.body;
+    const office = new Office({ title, level, department, order });
+    await office.save();
+    res.status(201).json({ message: 'Office created', office });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to create office', error: error.message });
+  }
+};
+
+export const getOffices = async (req: AuthRequest, res: Response) => {
+  try {
+    const offices = await Office.find().populate('department').sort('order');
+    res.json({ offices });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to fetch offices', error: error.message });
+  }
+};
+
+export const updateOffice = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    const office = await Office.findByIdAndUpdate(id, updates, { new: true });
+    res.json({ message: 'Office updated', office });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to update office', error: error.message });
+  }
+};
+
+export const deleteOffice = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    await Office.findByIdAndDelete(id);
+    res.json({ message: 'Office deleted' });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to delete office', error: error.message });
+  }
+};
+
+// Candidate Management
+export const createCandidate = async (req: AuthRequest, res: Response) => {
+  try {
+    const { fullName, office, level, department, manifesto } = req.body;
+    
+    let photoUrl = '';
+    if (req.file) {
+      photoUrl = await uploadToCloudinary(req.file.buffer, 'nacos-voting/candidates');
+    }
+
+    const candidate = new Candidate({
+      fullName,
+      photoUrl,
+      office,
+      level,
+      department,
+      manifesto
+    });
+
+    await candidate.save();
+    res.status(201).json({ message: 'Candidate created', candidate });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to create candidate', error: error.message });
+  }
+};
+
+export const getCandidates = async (req: AuthRequest, res: Response) => {
+  try {
+    const candidates = await Candidate.find()
+      .populate('office')
+      .populate('department');
+    res.json({ candidates });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to fetch candidates', error: error.message });
+  }
+};
+
+export const updateCandidate = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    if (req.file) {
+      updates.photoUrl = await uploadToCloudinary(req.file.buffer, 'nacos-voting/candidates');
+    }
+
+    const candidate = await Candidate.findByIdAndUpdate(id, updates, { new: true });
+    res.json({ message: 'Candidate updated', candidate });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to update candidate', error: error.message });
+  }
+};
+
+export const deleteCandidate = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    await Candidate.findByIdAndDelete(id);
+    res.json({ message: 'Candidate deleted' });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to delete candidate', error: error.message });
+  }
+};
+
+// Results and Analytics
+export const getResults = async (req: AuthRequest, res: Response) => {
+  try {
+    const { level, departmentId } = req.query;
+
+    let filter: any = {};
+    if (level) filter.level = level;
+    if (departmentId) filter.department = departmentId;
+
+    const votes = await Vote.find(filter)
+      .populate('office')
+      .populate('candidate');
+
+    // Group votes by office
+    const results: any = {};
+    
+    votes.forEach(vote => {
+      const officeId = (vote.office as any)._id.toString();
+      const officeName = (vote.office as any).title;
+      const candidateId = (vote.candidate as any)._id.toString();
+      const candidateName = (vote.candidate as any).fullName;
+
+      if (!results[officeId]) {
+        results[officeId] = {
+          office: officeName,
+          candidates: {}
+        };
+      }
+
+      if (!results[officeId].candidates[candidateId]) {
+        results[officeId].candidates[candidateId] = {
+          name: candidateName,
+          photo: (vote.candidate as any).photoUrl,
+          votes: 0
+        };
+      }
+
+      results[officeId].candidates[candidateId].votes++;
+    });
+
+    // Convert to array format
+    const formattedResults = Object.keys(results).map(officeId => ({
+      officeId,
+      office: results[officeId].office,
+      candidates: Object.keys(results[officeId].candidates).map(candidateId => ({
+        candidateId,
+        ...results[officeId].candidates[candidateId]
+      }))
+    }));
+
+    res.json({ results: formattedResults });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to fetch results', error: error.message });
+  }
+};
+
+export const getStatistics = async (req: AuthRequest, res: Response) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const totalVoters = await User.countDocuments({ hasVoted: true });
+    const totalVotes = await Vote.countDocuments();
+    const totalCandidates = await Candidate.countDocuments({ isActive: true });
+    const totalOffices = await Office.countDocuments({ isActive: true });
+
+    const departmentStats = await User.aggregate([
+      {
+        $group: {
+          _id: '$department',
+          total: { $sum: 1 },
+          voted: { $sum: { $cond: ['$hasVoted', 1, 0] } }
+        }
+      },
+      {
+        $lookup: {
+          from: 'departments',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'department'
+        }
+      }
+    ]);
+
+    res.json({
+      overview: {
+        totalUsers,
+        totalVoters,
+        totalVotes,
+        totalCandidates,
+        totalOffices,
+        turnoutPercentage: totalUsers > 0 ? ((totalVoters / totalUsers) * 100).toFixed(2) : 0
+      },
+      departmentStats
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to fetch statistics', error: error.message });
+  }
+};
+
+// Election Settings
+export const getElectionSettings = async (req: AuthRequest, res: Response) => {
+  try {
+    let settings = await ElectionSettings.findOne();
+    if (!settings) {
+      settings = new ElectionSettings();
+      await settings.save();
+    }
+    res.json({ settings });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to fetch settings', error: error.message });
+  }
+};
+
+export const updateElectionSettings = async (req: AuthRequest, res: Response) => {
+  try {
+    const updates = req.body;
+    let settings = await ElectionSettings.findOne();
+    
+    if (!settings) {
+      settings = new ElectionSettings(updates);
+    } else {
+      Object.assign(settings, updates);
+    }
+    
+    await settings.save();
+    res.json({ message: 'Settings updated', settings });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to update settings', error: error.message });
+  }
+};
