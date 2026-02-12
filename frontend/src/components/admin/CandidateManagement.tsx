@@ -80,7 +80,7 @@ export default function CandidateManagement() {
         formDataToSend.append('manifesto', formData.manifesto);
       }
       formDataToSend.append('isActive', formData.isActive.toString());
-      
+
       if (photoFile) {
         formDataToSend.append('photo', photoFile);
       }
@@ -141,20 +141,23 @@ export default function CandidateManagement() {
   };
 
   const getOfficeName = (candidate: Candidate) => {
+    if (!candidate.office) return 'No Office Assigned';
+
     if (typeof candidate.office === 'string') {
       const office = offices.find(o => o._id === candidate.office);
       return office?.title || 'Unknown Office';
     }
-    return candidate.office.title;
+    return candidate.office.title || 'Unknown Office';
   };
 
   const getDepartmentName = (candidate: Candidate) => {
     if (!candidate.department) return 'N/A';
+
     if (typeof candidate.department === 'string') {
       const dept = departments.find(d => d._id === candidate.department);
       return dept?.name || 'Unknown';
     }
-    return candidate.department.name;
+    return candidate.department.name || 'Unknown';
   };
 
   if (loading) return <div className="flex justify-center py-20"><div className="spinner"></div></div>;
@@ -170,8 +173,8 @@ export default function CandidateManagement() {
           <h2 className="text-2xl font-bold text-gray-900 font-display">Candidate Management</h2>
           <p className="text-gray-600">Add and manage election candidates with photos</p>
         </div>
-        <button 
-          onClick={() => setShowForm(!showForm)} 
+        <button
+          onClick={() => setShowForm(!showForm)}
           className="btn-primary flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
@@ -180,9 +183,9 @@ export default function CandidateManagement() {
       </div>
 
       {showForm && (
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }} 
-          animate={{ opacity: 1, y: 0 }} 
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
           className="card"
         >
           <div className="flex items-center justify-between mb-4">
@@ -215,8 +218,8 @@ export default function CandidateManagement() {
                 <select
                   required
                   value={formData.level}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
+                  onChange={(e) => setFormData({
+                    ...formData,
                     level: e.target.value as 'college' | 'department',
                     office: '', // Reset office when level changes
                     department: e.target.value === 'college' ? '' : formData.department
@@ -263,7 +266,7 @@ export default function CandidateManagement() {
                 <option value="">Select Position</option>
                 {filteredOffices.map((office) => (
                   <option key={office._id} value={office._id}>
-                    {office.title} {office.level === 'department' && office.department ? 
+                    {office.title} {office.level === 'department' && office.department ?
                       `(${departments.find(d => d._id === office.department)?.shortName})` : ''}
                   </option>
                 ))}
@@ -363,11 +366,10 @@ export default function CandidateManagement() {
                   {getOfficeName(candidate)}
                 </p>
                 <div className="flex items-center gap-2 mt-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    candidate.level === 'college' 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : 'bg-purple-100 text-purple-700'
-                  }`}>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${candidate.level === 'college'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-purple-100 text-purple-700'
+                    }`}>
                     {candidate.level === 'college' ? 'College' : 'Department'}
                   </span>
                   {candidate.level === 'department' && (
@@ -381,22 +383,21 @@ export default function CandidateManagement() {
                     {candidate.manifesto}
                   </p>
                 )}
-                <span className={`px-2 py-1 rounded-full text-xs font-medium mt-2 ${
-                  candidate.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                }`}>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium mt-2 ${candidate.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                  }`}>
                   {candidate.isActive ? 'Active' : 'Inactive'}
                 </span>
               </div>
 
               <div className="flex gap-2">
-                <button 
-                  onClick={() => handleEdit(candidate)} 
+                <button
+                  onClick={() => handleEdit(candidate)}
                   className="btn-secondary text-sm py-2 flex-1 flex items-center justify-center gap-1"
                 >
                   <Edit2 className="w-4 h-4" /> Edit
                 </button>
-                <button 
-                  onClick={() => handleDelete(candidate._id)} 
+                <button
+                  onClick={() => handleDelete(candidate._id)}
                   className="bg-red-50 text-red-700 hover:bg-red-100 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1"
                 >
                   <Trash2 className="w-4 h-4" />

@@ -1,8 +1,8 @@
+import Vote from '../models/Vote';
 import { Response } from 'express';
 import Department from '../models/Department';
 import Office from '../models/Office';
 import Candidate from '../models/Candidate';
-import Vote from '../models/Vote';
 import User from '../models/User';
 import ElectionSettings from '../models/ElectionSettings';
 import { AuthRequest } from '../middleware/auth';
@@ -67,6 +67,7 @@ export const getOffices = async (req: AuthRequest, res: Response) => {
     const offices = await Office.find().populate('department').sort('order');
     res.json({ offices });
   } catch (error: any) {
+    console.error('Get offices error:', error);
     res.status(500).json({ message: 'Failed to fetch offices', error: error.message });
   }
 };
@@ -93,35 +94,10 @@ export const deleteOffice = async (req: AuthRequest, res: Response) => {
 };
 
 // Candidate Management
-// export const createCandidate = async (req: AuthRequest, res: Response) => {
-//   try {
-//     const { fullName, office, level, department, manifesto } = req.body;
-    
-//     let photoUrl = '';
-//     if (req.file) {
-//       photoUrl = await uploadToCloudinary(req.file.buffer, 'nacos-voting/candidates');
-//     }
-
-//     const candidate = new Candidate({
-//       fullName,
-//       photoUrl,
-//       office,
-//       level,
-//       department,
-//       manifesto
-//     });
-
-//     await candidate.save();
-//     res.status(201).json({ message: 'Candidate created', candidate });
-//   } catch (error: any) {
-//     res.status(500).json({ message: 'Failed to create candidate', error: error.message });
-//   }
-// };
-
 export const createCandidate = async (req: AuthRequest, res: Response) => {
   try {
     const { fullName, office, level, department, manifesto } = req.body;
-    
+
     let photoUrl = '';
     if (req.file) {
       // Convert image to base64 and store directly
@@ -156,6 +132,7 @@ export const getCandidates = async (req: AuthRequest, res: Response) => {
       .populate('department');
     res.json({ candidates });
   } catch (error: any) {
+    console.error('Get candidates error:', error);
     res.status(500).json({ message: 'Failed to fetch candidates', error: error.message });
   }
 };
@@ -164,7 +141,7 @@ export const updateCandidate = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    
+
     if (req.file) {
       updates.photoUrl = await uploadToCloudinary(req.file.buffer, 'nacos-voting/candidates');
     }
@@ -187,6 +164,81 @@ export const deleteCandidate = async (req: AuthRequest, res: Response) => {
 };
 
 // Results and Analytics
+// export const getResults = async (req: AuthRequest, res: Response) => {
+//   try {
+//     const { level, departmentId } = req.query;
+
+//     let filter: any = {};
+//     if (level) filter.level = level;
+//     if (departmentId) filter.department = departmentId;
+
+//     const votes = await Vote.find(filter)
+//       .populate('office')
+//       .populate('candidate')
+//       .populate('department');
+
+//     // Group votes by office
+//     const results: any = {};
+
+//     votes.forEach(vote => {
+//       const office = vote.office as any;
+//       const candidate = vote.candidate as any;
+//       const officeId = office._id.toString();
+//       const officeName = office.title;
+//       const candidateId = candidate._id.toString();
+//       const candidateName = candidate.fullName;
+//       const candidatePhoto = candidate.photoUrl;
+//       const officeLevel = office.level;
+
+//       // Get department info for department-level offices
+//       let departmentInfo = null;
+//       if (officeLevel === 'department' && office.department) {
+//         departmentInfo = office.department;
+//       }
+
+//       if (!results[officeId]) {
+//         results[officeId] = {
+//           office: officeName,
+//           level: officeLevel,
+//           departmentId: departmentInfo?._id?.toString() || null,
+//           departmentName: departmentInfo?.name || null,
+//           candidates: {}
+//         };
+//       }
+
+//       if (!results[officeId].candidates[candidateId]) {
+//         results[officeId].candidates[candidateId] = {
+//           name: candidateName,
+//           photo: candidatePhoto,
+//           votes: 0
+//         };
+//       }
+
+//       results[officeId].candidates[candidateId].votes++;
+//     });
+
+//     // Convert to array format and sort candidates by votes
+//     const formattedResults = Object.keys(results).map(officeId => ({
+//       officeId,
+//       office: results[officeId].office,
+//       level: results[officeId].level,
+//       departmentId: results[officeId].departmentId,
+//       departmentName: results[officeId].departmentName,
+//       candidates: Object.keys(results[officeId].candidates)
+//         .map(candidateId => ({
+//           candidateId,
+//           ...results[officeId].candidates[candidateId]
+//         }))
+//         .sort((a, b) => b.votes - a.votes) // Sort by votes descending
+//     }));
+
+//     res.json({ results: formattedResults });
+//   } catch (error: any) {
+//     console.error('Get results error:', error);
+//     res.status(500).json({ message: 'Failed to fetch results', error: error.message });
+//   }
+// };
+
 export const getResults = async (req: AuthRequest, res: Response) => {
   try {
     const { level, departmentId } = req.query;
@@ -195,70 +247,94 @@ export const getResults = async (req: AuthRequest, res: Response) => {
     if (level) filter.level = level;
     if (departmentId) filter.department = departmentId;
 
+    // Fetch all votes with proper population
     const votes = await Vote.find(filter)
-      .populate('office')
+      .populate({
+        path: 'office',
+        populate: {
+          path: 'department',
+          model: 'Department'
+        }
+      })
       .populate('candidate')
-      .populate('department');
+      .populate('department')
+      .lean(); // Use lean for better performance
+
+    if (votes.length === 0) {
+      return res.json({ results: [] });
+    }
 
     // Group votes by office
-    const results: any = {};
-    
-    votes.forEach(vote => {
+    const resultsMap: any = {};
+
+    for (const vote of votes) {
       const office = vote.office as any;
       const candidate = vote.candidate as any;
+
+      if (!office || !candidate) continue; // Skip invalid votes
+
       const officeId = office._id.toString();
-      const officeName = office.title;
-      const candidateId = candidate._id.toString();
-      const candidateName = candidate.fullName;
-      const candidatePhoto = candidate.photoUrl;
-      const officeLevel = office.level;
-      
-      // Get department info for department-level offices
+
+      // Get department info safely
       let departmentInfo = null;
-      if (officeLevel === 'department' && office.department) {
-        departmentInfo = office.department;
+      if (office.level === 'department') {
+        departmentInfo = office.department || vote.department;
       }
 
-      if (!results[officeId]) {
-        results[officeId] = {
-          office: officeName,
-          level: officeLevel,
+      // Initialize office result if not exists
+      if (!resultsMap[officeId]) {
+        resultsMap[officeId] = {
+          office: office.title || 'Unknown Office',
+          level: office.level || 'college',
           departmentId: departmentInfo?._id?.toString() || null,
           departmentName: departmentInfo?.name || null,
           candidates: {}
         };
       }
 
-      if (!results[officeId].candidates[candidateId]) {
-        results[officeId].candidates[candidateId] = {
-          name: candidateName,
-          photo: candidatePhoto,
+      const candidateId = candidate._id.toString();
+
+      // Initialize candidate if not exists
+      if (!resultsMap[officeId].candidates[candidateId]) {
+        resultsMap[officeId].candidates[candidateId] = {
+          name: candidate.fullName || 'Unknown Candidate',
+          photo: candidate.photoUrl || '',
           votes: 0
         };
       }
 
-      results[officeId].candidates[candidateId].votes++;
-    });
+      // Increment vote count
+      resultsMap[officeId].candidates[candidateId].votes++;
+    }
 
-    // Convert to array format and sort candidates by votes
-    const formattedResults = Object.keys(results).map(officeId => ({
-      officeId,
-      office: results[officeId].office,
-      level: results[officeId].level,
-      departmentId: results[officeId].departmentId,
-      departmentName: results[officeId].departmentName,
-      candidates: Object.keys(results[officeId].candidates)
+    // Convert to array and sort candidates
+    const formattedResults = Object.keys(resultsMap).map(officeId => {
+      const candidatesArray = Object.keys(resultsMap[officeId].candidates)
         .map(candidateId => ({
           candidateId,
-          ...results[officeId].candidates[candidateId]
+          ...resultsMap[officeId].candidates[candidateId]
         }))
-        .sort((a, b) => b.votes - a.votes) // Sort by votes descending
-    }));
+        .sort((a, b) => b.votes - a.votes); // Sort by votes descending
+
+      return {
+        officeId,
+        office: resultsMap[officeId].office,
+        level: resultsMap[officeId].level,
+        departmentId: resultsMap[officeId].departmentId,
+        departmentName: resultsMap[officeId].departmentName,
+        candidates: candidatesArray
+      };
+    });
 
     res.json({ results: formattedResults });
   } catch (error: any) {
     console.error('Get results error:', error);
-    res.status(500).json({ message: 'Failed to fetch results', error: error.message });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+      message: 'Failed to fetch results',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
@@ -322,13 +398,13 @@ export const updateElectionSettings = async (req: AuthRequest, res: Response) =>
   try {
     const updates = req.body;
     let settings = await ElectionSettings.findOne();
-    
+
     if (!settings) {
       settings = new ElectionSettings(updates);
     } else {
       Object.assign(settings, updates);
     }
-    
+
     await settings.save();
     res.json({ message: 'Settings updated', settings });
   } catch (error: any) {

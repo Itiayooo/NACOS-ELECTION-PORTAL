@@ -22,7 +22,8 @@ api.interceptors.request.use((config) => {
 export const authService = {
   register: (data: any) => api.post('/auth/register', data),
   login: (data: any) => api.post('/auth/login', data),
-  getProfile: () => api.get('/auth/profile')
+  getProfile: () => api.get('/auth/profile'),
+  getDepartments: () => api.get('/auth/departments')  
 };
 
 // Voting endpoints

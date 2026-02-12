@@ -5,6 +5,7 @@ import { connectDB } from './config/database';
 import authRoutes from './routes/auth';
 import voteRoutes from './routes/vote';
 import adminRoutes from './routes/admin';
+import eligibilityRoutes from './routes/eligibility';  // ADD THIS IMPORT
 
 // Load environment variables
 dotenv.config();
@@ -21,6 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/vote', voteRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/eligibility', eligibilityRoutes);  // ADD THIS LINE
 
 // Health check
 app.get('/health', (req, res) => {
@@ -42,8 +44,8 @@ const startServer = async () => {
     await connectDB();
     
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

@@ -5,7 +5,7 @@ export interface User {
   fullName: string;
   department: Department;
   isAdmin: boolean;
-  hasVoted: boolean;
+  hasVoted: boolean;  
 }
 
 export interface Department {

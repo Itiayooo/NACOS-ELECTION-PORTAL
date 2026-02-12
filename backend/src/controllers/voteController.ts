@@ -5,6 +5,72 @@ import Candidate from '../models/Candidate';
 import Office from '../models/Office';
 import ElectionSettings from '../models/ElectionSettings';
 import { AuthRequest } from '../middleware/auth';
+import { DepartmentEligibility } from '../models/Eligibility';
+
+// export const getVotingData = async (req: AuthRequest, res: Response) => {
+//   try {
+//     const user = req.user!;
+
+//     // Get election settings
+//     const settings = await ElectionSettings.findOne().populate('allowedDepartments');
+//     if (!settings?.isElectionActive) {
+//       return res.status(400).json({ message: 'Election is not currently active' });
+//     }
+
+//     // Check if user's department is allowed to vote
+//     const userDeptId = typeof user.department === 'string' ? user.department : user.department._id.toString();
+//     const allowedDeptIds = settings.allowedDepartments.map((d: any) =>
+//       typeof d === 'string' ? d : d._id.toString()
+//     );
+
+//     if (!allowedDeptIds.includes(userDeptId)) {
+//       return res.status(403).json({
+//         message: 'Your department is not participating in this election',
+//         allowedToVote: false
+//       });
+//     }
+
+//     // Get college-level offices and candidates (everyone can see)
+//     const collegeOffices = await Office.find({ level: 'college', isActive: true }).sort('order');
+//     const collegeCandidates = await Candidate.find({
+//       level: 'college',
+//       isActive: true,
+//       office: { $in: collegeOffices.map(o => o._id) }
+//     }).populate('office');
+
+//     let departmentOffices: any[] = [];
+//     let departmentCandidates: any[] = [];
+
+//     // Only show department positions if user is in department eligibility list
+//     if (user.canVoteInDepartment) {
+//       departmentOffices = await Office.find({
+//         level: 'department',
+//         department: user.department,
+//         isActive: true
+//       }).sort('order');
+
+//       departmentCandidates = await Candidate.find({
+//         level: 'department',
+//         department: user.department,
+//         isActive: true,
+//         office: { $in: departmentOffices.map(o => o._id) }
+//       }).populate('office');
+//     }
+
+//     res.json({
+//       collegeOffices,
+//       departmentOffices,
+//       collegeCandidates,
+//       departmentCandidates,
+//       hasVoted: user.hasVoted,
+//       allowedToVote: true,
+//       canVoteInDepartment: user.canVoteInDepartment,
+//       userDepartment: user.department
+//     });
+//   } catch (error: any) {
+//     res.status(500).json({ message: 'Failed to fetch voting data', error: error.message });
+//   }
+// };
 
 export const getVotingData = async (req: AuthRequest, res: Response) => {
   try {
@@ -18,41 +84,50 @@ export const getVotingData = async (req: AuthRequest, res: Response) => {
 
     // Check if user's department is allowed to vote
     const userDeptId = typeof user.department === 'string' ? user.department : user.department._id.toString();
-    const allowedDeptIds = settings.allowedDepartments.map((d: any) => 
+    const allowedDeptIds = settings.allowedDepartments.map((d: any) =>
       typeof d === 'string' ? d : d._id.toString()
     );
 
     if (!allowedDeptIds.includes(userDeptId)) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: 'Your department is not participating in this election',
         allowedToVote: false
       });
     }
 
-    // Get college-level offices and candidates
+    // Get college-level offices and candidates (EVERYONE in college sees these)
     const collegeOffices = await Office.find({ level: 'college', isActive: true }).sort('order');
-    
-    // Get department-level offices and candidates for user's department ONLY
-    const departmentOffices = await Office.find({ 
-      level: 'department', 
-      department: user.department,
-      isActive: true 
-    }).sort('order');
-
-    // Get candidates for college offices
     const collegeCandidates = await Candidate.find({
       level: 'college',
       isActive: true,
       office: { $in: collegeOffices.map(o => o._id) }
     }).populate('office');
 
-    // Get candidates for department offices (only for user's department)
-    const departmentCandidates = await Candidate.find({
-      level: 'department',
+    // Check if user is in THEIR department's eligibility list
+    const deptEligible = await DepartmentEligibility.findOne({
+      studentId: user.studentId,
       department: user.department,
-      isActive: true,
-      office: { $in: departmentOffices.map(o => o._id) }
-    }).populate('office');
+      isActive: true
+    });
+
+    let departmentOffices: any[] = [];
+    let departmentCandidates: any[] = [];
+
+    // Only show THEIR department's positions if they're in that department's list
+    if (deptEligible) {
+      departmentOffices = await Office.find({
+        level: 'department',
+        department: user.department,
+        isActive: true
+      }).sort('order');
+
+      departmentCandidates = await Candidate.find({
+        level: 'department',
+        department: user.department,
+        isActive: true,
+        office: { $in: departmentOffices.map(o => o._id) }
+      }).populate('office');
+    }
 
     res.json({
       collegeOffices,
@@ -61,6 +136,7 @@ export const getVotingData = async (req: AuthRequest, res: Response) => {
       departmentCandidates,
       hasVoted: user.hasVoted,
       allowedToVote: true,
+      canVoteInDepartment: !!deptEligible,
       userDepartment: user.department
     });
   } catch (error: any) {
@@ -84,12 +160,12 @@ export const castVote = async (req: AuthRequest, res: Response) => {
 
     // Check if user's department is allowed to vote
     const userDeptId = typeof user.department === 'string' ? user.department : user.department._id.toString();
-    const allowedDeptIds = settings.allowedDepartments.map((d: any) => 
+    const allowedDeptIds = settings.allowedDepartments.map((d: any) =>
       typeof d === 'string' ? d : d._id.toString()
     );
 
     if (!allowedDeptIds.includes(userDeptId)) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: 'Your department is not participating in this election'
       });
     }

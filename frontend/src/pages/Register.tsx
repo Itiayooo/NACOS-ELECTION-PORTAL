@@ -27,12 +27,43 @@ export default function Register() {
 
   const fetchDepartments = async () => {
     try {
-      const response = await adminService.getDepartments();
+      const response = await authService.getDepartments();  // Changed from adminService
       setDepartments(response.data.departments.filter((d: Department) => d.isActive));
     } catch (error) {
       console.error('Failed to fetch departments');
+      toast.error('Failed to load departments');
     }
   };
+
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+
+  //   if (formData.password !== formData.confirmPassword) {
+  //     toast.error('Passwords do not match');
+  //     return;
+  //   }
+
+  //   setLoading(true);
+
+  //   try {
+  //     const response = await authService.register({
+  //       studentId: formData.studentId,
+  //       email: formData.email,
+  //       password: formData.password,
+  //       fullName: formData.fullName,
+  //       department: formData.department
+  //     });
+
+  //     const { user, token } = response.data;
+  //     login(user, token);
+  //     toast.success('Registration successful!');
+  //     navigate('/vote');
+  //   } catch (error: any) {
+  //     toast.error(error.response?.data?.message || 'Registration failed');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,11 +89,19 @@ export default function Register() {
       toast.success('Registration successful!');
       navigate('/vote');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Registration failed');
+      // Handle eligibility errors
+      if (error.response?.data?.reason === 'not_in_college_eligibility_list') {
+        toast.error('Access Denied: You are not eligible to register for this platform. Please contact the electoral committee.');
+      } else if (error.response?.data?.expectedEmail) {
+        toast.error(`Email mismatch: Please use ${error.response.data.expectedEmail}`);
+      } else {
+        toast.error(error.response?.data?.message || 'Registration failed');
+      }
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 py-12">
@@ -93,7 +132,7 @@ export default function Register() {
           className="glass-card"
         >
           <h2 className="text-2xl font-bold text-gray-800 mb-6 font-display">Create Account</h2>
-          
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid md:grid-cols-2 gap-5">
               <div>

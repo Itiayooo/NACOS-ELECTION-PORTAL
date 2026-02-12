@@ -15,6 +15,29 @@ export default function Login() {
     password: ''
   });
 
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   setLoading(true);
+
+  //   try {
+  //     const response = await authService.login(formData);
+  //     const { user, token } = response.data;
+
+  //     login(user, token);
+  //     toast.success('Login successful!');
+
+  //     if (user.isAdmin) {
+  //       navigate('/admin');
+  //     } else {
+  //       navigate('/vote');
+  //     }
+  //   } catch (error: any) {
+  //     toast.error(error.response?.data?.message || 'Login failed');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -22,17 +45,22 @@ export default function Login() {
     try {
       const response = await authService.login(formData);
       const { user, token } = response.data;
-      
+
       login(user, token);
       toast.success('Login successful!');
-      
+
       if (user.isAdmin) {
         navigate('/admin');
       } else {
         navigate('/vote');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Login failed');
+      // Handle eligibility revoked error
+      if (error.response?.data?.reason === 'eligibility_revoked') {
+        toast.error('Access Revoked: Your eligibility has been removed. Contact the electoral committee.');
+      } else {
+        toast.error(error.response?.data?.message || 'Login failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -67,7 +95,7 @@ export default function Login() {
           className="glass-card"
         >
           <h2 className="text-2xl font-bold text-gray-800 mb-6 font-display">Login to Vote</h2>
-          
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
