@@ -45,7 +45,8 @@ const seedDatabase = async () => {
       { studentId: 'CS/2020/002', email: 'student2@nacos.com', fullName: 'Jane Smith' },
       { studentId: 'CS/2020/003', email: 'student3@nacos.com', fullName: 'Bob Johnson' },
       { studentId: 'CS/2020/004', email: 'student4@nacos.com', fullName: 'Alice Williams' },
-      { studentId: 'CS/2020/005', email: 'student5@nacos.com', fullName: 'Charlie Brown' }
+      { studentId: 'CS/2020/005', email: 'student5@nacos.com', fullName: 'Charlie Brown' },
+      { studentId: 'CS/2020/006', email: 'student6@nacos.com', fullName: 'Big Daddy' }
     ];
 
     await CollegeEligibility.insertMany(collegeEligibleStudents);

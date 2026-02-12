@@ -174,7 +174,7 @@ export default function VotingPage() {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-3xl font-bold text-nacos-green-800 font-display mb-1">
-                NACOS Election 2024
+                NACOS Election 2025/26
               </h1>
               <p className="text-gray-600">
                 Welcome, <span className="font-semibold text-nacos-green-700">{user?.fullName}</span>

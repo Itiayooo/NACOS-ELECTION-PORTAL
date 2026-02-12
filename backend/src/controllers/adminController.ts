@@ -128,8 +128,16 @@ export const createCandidate = async (req: AuthRequest, res: Response) => {
 export const getCandidates = async (req: AuthRequest, res: Response) => {
   try {
     const candidates = await Candidate.find()
-      .populate('office')
-      .populate('department');
+      .populate({
+        path: 'office',
+        populate: {
+          path: 'department',
+          model: 'Department'
+        }
+      })
+      .populate('department')
+      .lean();
+
     res.json({ candidates });
   } catch (error: any) {
     console.error('Get candidates error:', error);
@@ -156,9 +164,15 @@ export const updateCandidate = async (req: AuthRequest, res: Response) => {
 export const deleteCandidate = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    await Candidate.findByIdAndDelete(id);
-    res.json({ message: 'Candidate deleted' });
+    const candidate = await Candidate.findByIdAndDelete(id);
+
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+
+    res.json({ message: 'Candidate deleted successfully' });
   } catch (error: any) {
+    console.error('Delete candidate error:', error);
     res.status(500).json({ message: 'Failed to delete candidate', error: error.message });
   }
 };

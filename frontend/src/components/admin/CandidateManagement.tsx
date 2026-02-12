@@ -117,26 +117,42 @@ export default function CandidateManagement() {
 
   const handleEdit = (candidate: Candidate) => {
     setEditingId(candidate._id);
+
+    // Safely get office ID
+    let officeId = '';
+    if (candidate.office) {
+      officeId = typeof candidate.office === 'string' ? candidate.office : candidate.office._id;
+    }
+
+    // Safely get department ID
+    let departmentId = '';
+    if (candidate.department) {
+      departmentId = typeof candidate.department === 'string' ? candidate.department : candidate.department._id;
+    }
+
     setFormData({
       fullName: candidate.fullName,
-      office: typeof candidate.office === 'string' ? candidate.office : candidate.office._id,
+      office: officeId,
       level: candidate.level,
-      department: typeof candidate.department === 'string' ? candidate.department : (candidate.department?._id || ''),
+      department: departmentId,
       manifesto: candidate.manifesto || '',
       isActive: candidate.isActive
     });
+
     setPhotoPreview(candidate.photoUrl);
     setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this candidate?')) return;
+    if (!window.confirm('Are you sure you want to delete this candidate?')) return;
+
     try {
       await adminService.deleteCandidate(id);
       toast.success('Candidate deleted');
       fetchData();
-    } catch (error) {
-      toast.error('Failed to delete candidate');
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete candidate');
     }
   };
 
