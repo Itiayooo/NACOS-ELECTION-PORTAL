@@ -197,20 +197,34 @@ export const getResults = async (req: AuthRequest, res: Response) => {
 
     const votes = await Vote.find(filter)
       .populate('office')
-      .populate('candidate');
+      .populate('candidate')
+      .populate('department');
 
     // Group votes by office
     const results: any = {};
     
     votes.forEach(vote => {
-      const officeId = (vote.office as any)._id.toString();
-      const officeName = (vote.office as any).title;
-      const candidateId = (vote.candidate as any)._id.toString();
-      const candidateName = (vote.candidate as any).fullName;
+      const office = vote.office as any;
+      const candidate = vote.candidate as any;
+      const officeId = office._id.toString();
+      const officeName = office.title;
+      const candidateId = candidate._id.toString();
+      const candidateName = candidate.fullName;
+      const candidatePhoto = candidate.photoUrl;
+      const officeLevel = office.level;
+      
+      // Get department info for department-level offices
+      let departmentInfo = null;
+      if (officeLevel === 'department' && office.department) {
+        departmentInfo = office.department;
+      }
 
       if (!results[officeId]) {
         results[officeId] = {
           office: officeName,
+          level: officeLevel,
+          departmentId: departmentInfo?._id?.toString() || null,
+          departmentName: departmentInfo?.name || null,
           candidates: {}
         };
       }
@@ -218,7 +232,7 @@ export const getResults = async (req: AuthRequest, res: Response) => {
       if (!results[officeId].candidates[candidateId]) {
         results[officeId].candidates[candidateId] = {
           name: candidateName,
-          photo: (vote.candidate as any).photoUrl,
+          photo: candidatePhoto,
           votes: 0
         };
       }
@@ -226,18 +240,24 @@ export const getResults = async (req: AuthRequest, res: Response) => {
       results[officeId].candidates[candidateId].votes++;
     });
 
-    // Convert to array format
+    // Convert to array format and sort candidates by votes
     const formattedResults = Object.keys(results).map(officeId => ({
       officeId,
       office: results[officeId].office,
-      candidates: Object.keys(results[officeId].candidates).map(candidateId => ({
-        candidateId,
-        ...results[officeId].candidates[candidateId]
-      }))
+      level: results[officeId].level,
+      departmentId: results[officeId].departmentId,
+      departmentName: results[officeId].departmentName,
+      candidates: Object.keys(results[officeId].candidates)
+        .map(candidateId => ({
+          candidateId,
+          ...results[officeId].candidates[candidateId]
+        }))
+        .sort((a, b) => b.votes - a.votes) // Sort by votes descending
     }));
 
     res.json({ results: formattedResults });
   } catch (error: any) {
+    console.error('Get results error:', error);
     res.status(500).json({ message: 'Failed to fetch results', error: error.message });
   }
 };
