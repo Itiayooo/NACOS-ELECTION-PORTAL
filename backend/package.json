@@ -7,7 +7,9 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "seed": "ts-node src/seed.ts"
+    "seed": "ts-node src/seed.ts",
+    "clear-votes": "ts-node src/clearVotes.ts",
+    "clear": "ts-node src/clear.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

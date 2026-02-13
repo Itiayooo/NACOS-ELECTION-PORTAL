@@ -72,54 +72,142 @@ import { DepartmentEligibility } from '../models/Eligibility';
 //   }
 // };
 
+// Original 
+// export const getVotingData = async (req: AuthRequest, res: Response) => {
+//   try {
+//     const user = req.user!;
+
+//     // Get election settings
+//     const settings = await ElectionSettings.findOne().populate('allowedDepartments');
+//     if (!settings?.isElectionActive) {
+//       return res.status(400).json({ message: 'Election is not currently active' });
+//     }
+
+//     // Check if user's department is allowed to vote
+//     const userDeptId = typeof user.department === 'string' ? user.department : user.department._id.toString();
+//     const allowedDeptIds = settings.allowedDepartments.map((d: any) =>
+//       typeof d === 'string' ? d : d._id.toString()
+//     );
+
+//     if (!allowedDeptIds.includes(userDeptId)) {
+//       return res.status(403).json({
+//         message: 'Your department is not participating in this election',
+//         allowedToVote: false
+//       });
+//     }
+
+//     // Get college-level offices and candidates (EVERYONE in college sees these)
+//     const collegeOffices = await Office.find({ level: 'college', isActive: true }).sort('order');
+//     const collegeCandidates = await Candidate.find({
+//       level: 'college',
+//       isActive: true,
+//       office: { $in: collegeOffices.map(o => o._id) }
+//     }).populate('office');
+
+//     // Check if user is in THEIR department's eligibility list
+//     const deptEligible = await DepartmentEligibility.findOne({
+//       studentId: user.studentId,
+//       department: user.department,
+//       isActive: true
+//     });
+
+//     let departmentOffices: any[] = [];
+//     let departmentCandidates: any[] = [];
+
+//     // Only show THEIR department's positions if they're in that department's list
+//     if (deptEligible) {
+//       departmentOffices = await Office.find({
+//         level: 'department',
+//         department: user.department,
+//         isActive: true
+//       }).sort('order');
+
+//       departmentCandidates = await Candidate.find({
+//         level: 'department',
+//         department: user.department,
+//         isActive: true,
+//         office: { $in: departmentOffices.map(o => o._id) }
+//       }).populate('office');
+//     }
+
+//     res.json({
+//       collegeOffices,
+//       departmentOffices,
+//       collegeCandidates,
+//       departmentCandidates,
+//       hasVoted: user.hasVoted,
+//       allowedToVote: true,
+//       canVoteInDepartment: !!deptEligible,
+//       userDepartment: user.department
+//     });
+//   } catch (error: any) {
+//     res.status(500).json({ message: 'Failed to fetch voting data', error: error.message });
+//   }
+// };
+
+// Debug
 export const getVotingData = async (req: AuthRequest, res: Response) => {
   try {
+    console.log('=== Getting voting data ===');
     const user = req.user!;
+    console.log('User:', user.email, 'Department:', user.department);
 
     // Get election settings
     const settings = await ElectionSettings.findOne().populate('allowedDepartments');
+    console.log('Election active:', settings?.isElectionActive);
+    
     if (!settings?.isElectionActive) {
       return res.status(400).json({ message: 'Election is not currently active' });
     }
 
     // Check if user's department is allowed to vote
     const userDeptId = typeof user.department === 'string' ? user.department : user.department._id.toString();
-    const allowedDeptIds = settings.allowedDepartments.map((d: any) =>
+    const allowedDeptIds = settings.allowedDepartments.map((d: any) => 
       typeof d === 'string' ? d : d._id.toString()
     );
 
+    console.log('User dept ID:', userDeptId);
+    console.log('Allowed dept IDs:', allowedDeptIds);
+
     if (!allowedDeptIds.includes(userDeptId)) {
-      return res.status(403).json({
+      return res.status(403).json({ 
         message: 'Your department is not participating in this election',
         allowedToVote: false
       });
     }
 
-    // Get college-level offices and candidates (EVERYONE in college sees these)
+    // Get college-level offices and candidates
+    console.log('Fetching college offices...');
     const collegeOffices = await Office.find({ level: 'college', isActive: true }).sort('order');
+    console.log('Found', collegeOffices.length, 'college offices');
+
     const collegeCandidates = await Candidate.find({
       level: 'college',
       isActive: true,
       office: { $in: collegeOffices.map(o => o._id) }
     }).populate('office');
+    console.log('Found', collegeCandidates.length, 'college candidates');
 
-    // Check if user is in THEIR department's eligibility list
+    // Check department eligibility
+    console.log('Checking department eligibility for:', user.studentId);
     const deptEligible = await DepartmentEligibility.findOne({
       studentId: user.studentId,
       department: user.department,
       isActive: true
     });
+    console.log('Dept eligible:', !!deptEligible);
 
     let departmentOffices: any[] = [];
     let departmentCandidates: any[] = [];
 
-    // Only show THEIR department's positions if they're in that department's list
     if (deptEligible) {
-      departmentOffices = await Office.find({
-        level: 'department',
+      console.log('Fetching department offices...');
+      departmentOffices = await Office.find({ 
+        level: 'department', 
         department: user.department,
-        isActive: true
+        isActive: true 
       }).sort('order');
+      console.log('Found', departmentOffices.length, 'department offices');
 
       departmentCandidates = await Candidate.find({
         level: 'department',
@@ -127,8 +215,10 @@ export const getVotingData = async (req: AuthRequest, res: Response) => {
         isActive: true,
         office: { $in: departmentOffices.map(o => o._id) }
       }).populate('office');
+      console.log('Found', departmentCandidates.length, 'department candidates');
     }
 
+    console.log('Sending response...');
     res.json({
       collegeOffices,
       departmentOffices,
@@ -140,7 +230,9 @@ export const getVotingData = async (req: AuthRequest, res: Response) => {
       userDepartment: user.department
     });
   } catch (error: any) {
-    res.status(500).json({ message: 'Failed to fetch voting data', error: error.message });
+    console.error('Get voting data error:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ message: 'Failed to fetch voting data', error: error.message, stack: error.stack });
   }
 };
 

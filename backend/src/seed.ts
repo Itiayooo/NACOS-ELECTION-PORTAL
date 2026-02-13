@@ -3,9 +3,9 @@ import Department from './models/Department';
 import Office from './models/Office';
 import User from './models/User';
 import ElectionSettings from './models/ElectionSettings';
+import { CollegeEligibility, DepartmentEligibility } from './models/Eligibility';
 import { connectDB } from './config/database';
 import dotenv from 'dotenv';
-import { CollegeEligibility, DepartmentEligibility } from './models/Eligibility';
 
 dotenv.config();
 
@@ -15,61 +15,50 @@ const seedDatabase = async () => {
 
     console.log('Starting database seed...');
 
-    // Clear existing data
-    console.log('Clearing existing data...');
+    // COMPLETELY CLEAR ALL COLLECTIONS
+    console.log('Clearing all data...');
     await Department.deleteMany({});
     await Office.deleteMany({});
+    await User.deleteMany({});
     await ElectionSettings.deleteMany({});
+    await CollegeEligibility.deleteMany({});
+    await DepartmentEligibility.deleteMany({});
+    console.log('All data cleared');
 
-    // Create departments
+    // Create departments - ALL ACTIVE
     console.log('Creating departments...');
     const departments = await Department.insertMany([
       { name: 'Computer Science', shortName: 'CS', isActive: true },
-      { name: 'Information Technology and Information Communication Technology', shortName: 'IT & ICT', isActive: false },
-      { name: 'Software Engineering and Information Systems', shortName: 'SE & IS', isActive: false },
-      { name: 'Cybersecurity', shortName: 'CYB', isActive: false },
-      { name: 'Data Science', shortName: 'DS', isActive: false }
+      { name: 'Information Technology and Information Communication Technology', shortName: 'IT & ICT', isActive: true },
+      { name: 'Software Engineering and Information Systems', shortName: 'SE & IS', isActive: true },
+      { name: 'Cybersecurity', shortName: 'CYB', isActive: true },
+      { name: 'Data Science', shortName: 'DS', isActive: true }
     ]);
-
-    const csDept = departments[0];
     console.log(`Created ${departments.length} departments`);
 
-    // Clear eligibility lists
-    console.log('Creating eligibility lists...');
-    await CollegeEligibility.deleteMany({});
-    await DepartmentEligibility.deleteMany({});
+    const [csDept, itDept, seDept, cybDept, dsDept] = departments;
 
-    // Create college-level eligibility (can access platform)
-    const collegeEligibleStudents = [
+    // Create college-level eligibility
+    console.log('Creating college eligibility list...');
+    await CollegeEligibility.insertMany([
       { studentId: 'CS/2020/001', email: 'student1@nacos.com', fullName: 'John Doe' },
-      { studentId: 'CS/2020/002', email: 'student2@nacos.com', fullName: 'Jane Smith' },
-      { studentId: 'CS/2020/003', email: 'student3@nacos.com', fullName: 'Bob Johnson' },
-      { studentId: 'CS/2020/004', email: 'student4@nacos.com', fullName: 'Alice Williams' },
-      { studentId: 'CS/2020/005', email: 'student5@nacos.com', fullName: 'Charlie Brown' },
-      { studentId: 'CS/2020/006', email: 'student6@nacos.com', fullName: 'Big Daddy' }
-    ];
-
-    await CollegeEligibility.insertMany(collegeEligibleStudents);
-    console.log(`Created ${collegeEligibleStudents.length} college-eligible students`);
-
-    // Create department-level eligibility (can vote in department elections)    
-
+      { studentId: 'IT/2020/001', email: 'student2@nacos.com', fullName: 'Jane Smith' },
+      { studentId: 'SE/2020/001', email: 'student3@nacos.com', fullName: 'Bob Johnson' },
+      { studentId: 'CYB/2020/001', email: 'student4@nacos.com', fullName: 'Alice Williams' },
+      { studentId: 'DS/2020/001', email: 'student5@nacos.com', fullName: 'Charlie Brown' }
+    ]);
+    console.log('Created college eligibility list');
 
     // Create college-level offices
-    console.log('Creating college-level offices...');
+    console.log('Creating college offices...');
     const collegeOfficesTitles = [
-      'President',
-      'Vice President',
-      'General Secretary',
-      'Assistant General Secretary',
-      'Welfare Director',
-      'Financial Secretary',
-      'Social Director',
-      'Sports Director',
-      'Public Relations Officer'
+      'President', 'Vice President', 'General Secretary',
+      'Assistant General Secretary', 'Welfare Director',
+      'Financial Secretary', 'Social Director',
+      'Sports Director', 'Public Relations Officer'
     ];
 
-    const collegeOffices = await Office.insertMany(
+    await Office.insertMany(
       collegeOfficesTitles.map((title, index) => ({
         title,
         level: 'college',
@@ -77,23 +66,18 @@ const seedDatabase = async () => {
         order: index
       }))
     );
-    console.log(`Created ${collegeOffices.length} college-level offices`);
+    console.log(`Created ${collegeOfficesTitles.length} college offices`);
 
-    // Create department-level offices (for CS only)
-    console.log('Creating department-level offices for Computer Science...');
+    // Create department offices for CS
+    console.log('Creating CS department offices...');
     const deptOfficesTitles = [
-      'President',
-      'Vice President',
-      'General Secretary',
-      'Assistant General Secretary',
-      'Welfare Director',
-      'Financial Secretary',
-      'Social Director',
-      'Sports Director',
-      'Public Relations Officer'
+      'President', 'Vice President', 'General Secretary',
+      'Assistant General Secretary', 'Welfare Director',
+      'Financial Secretary', 'Social Director',
+      'Sports Director', 'Public Relations Officer'
     ];
 
-    const deptOffices = await Office.insertMany(
+    await Office.insertMany(
       deptOfficesTitles.map((title, index) => ({
         title,
         level: 'department',
@@ -102,85 +86,58 @@ const seedDatabase = async () => {
         order: index
       }))
     );
-    console.log(`Created ${deptOffices.length} department-level offices`);
+    console.log(`Created ${deptOfficesTitles.length} CS department offices`);
 
     // Create admin user
     console.log('Creating admin user...');
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@nacos.com';
-    const existingAdmin = await User.findOne({ email: adminEmail });
+    await User.create({
+      studentId: 'ADMIN001',
+      email: 'admin@nacos.com',
+      password: 'changeme123',
+      fullName: 'System Administrator',
+      department: csDept._id,
+      isAdmin: true
+    });
+    console.log('Admin created: admin@nacos.com / changeme123');
 
-    if (!existingAdmin) {
-      await User.create({
-        studentId: 'ADMIN001',
-        email: adminEmail,
-        password: process.env.ADMIN_PASSWORD || 'changeme123',
-        fullName: 'System Administrator',
-        department: csDept._id,
-        isAdmin: true
-      });
-      console.log(`Created admin user (${adminEmail})`);
-    } else {
-      console.log('Admin user already exists');
-    }
-
-    // Create some sample students for testing
-    console.log('Creating sample students...');
-    const sampleStudents = [
-      {
-        studentId: 'CS/2020/001',
-        email: 'student1@nacos.com',
-        password: 'password123',
-        fullName: 'John Doe',
-        department: csDept._id,        
-      },
-      {
-        studentId: 'CS/2020/002',
-        email: 'student2@nacos.com',
-        password: 'password123',
-        fullName: 'Jane Smith',
-        department: csDept._id,        
-      },
-      {
-        studentId: 'CS/2020/003',
-        email: 'student3@nacos.com',
-        password: 'password123',
-        fullName: 'Bob Johnson',
-        department: csDept._id,        
-      },
-      {
-        studentId: 'CS/2020/004',
-        email: 'student4@nacos.com',
-        password: 'password123',
-        fullName: 'Alice Williams',
-        department: csDept._id,        
-      }
+    // Create sample students
+    console.log('👥 Creating sample students...');
+    const students = [
+      { studentId: 'CS/2020/001', email: 'student1@nacos.com', password: 'password123', fullName: 'John Doe', department: csDept._id },
+      { studentId: 'IT/2020/001', email: 'student2@nacos.com', password: 'password123', fullName: 'Jane Smith', department: itDept._id },
+      { studentId: 'SE/2020/001', email: 'student3@nacos.com', password: 'password123', fullName: 'Bob Johnson', department: seDept._id },
+      { studentId: 'CYB/2020/001', email: 'student4@nacos.com', password: 'password123', fullName: 'Alice Williams', department: cybDept._id },      
     ];
 
-    for (const student of sampleStudents) {
-      const existing = await User.findOne({ email: student.email });
-      if (!existing) {
-        await User.create(student);
-      }
-    }
-    console.log(`Created sample students`);
+    await User.insertMany(students);
+    console.log(`Created ${students.length} sample students`);
+
+    // Add students to department eligibility
+    console.log('📝 Adding students to department eligibility...');
+    await DepartmentEligibility.insertMany([
+      { studentId: 'CS/2020/001', department: csDept._id },
+      { studentId: 'IT/2020/001', department: itDept._id },
+      { studentId: 'SE/2020/001', department: seDept._id },
+      { studentId: 'CYB/2020/001', department: cybDept._id }      
+    ]);
+    console.log('Added students to department eligibility');
 
     // Create election settings
     console.log('Creating election settings...');
     await ElectionSettings.create({
       isElectionActive: false,
-      allowedDepartments: [csDept._id],
+      allowedDepartments: departments.map(d => d._id),
       resultVisibility: 'hidden'
     });
-    console.log('Created election settings');
+    console.log('Election settings created');
 
-    console.log('\n Database seeded successfully!');
-    console.log('\n Login Credentials:');
-    console.log(`   Admin: ${adminEmail} / ${process.env.ADMIN_PASSWORD || 'changeme123'}`);
-    console.log('   Student: student1@nacos.com / password123');
-    console.log('\n Remember to:');
-    console.log('   1. Change default passwords');
-    console.log('   2. Add candidates with photos from admin panel');
-    console.log('   3. Activate election when ready');
+    console.log('\nDatabase seeded successfully!\n');
+    console.log('📋 Login Credentials:');
+    console.log('   Admin: admin@nacos.com / changeme123');
+    console.log('   CS Student: student1@nacos.com / password123');
+    console.log('   IT Student: student2@nacos.com / password123');
+    console.log('   SE Student: student3@nacos.com / password123');
+    console.log('   CYB Student: student4@nacos.com / password123\n');    
 
     process.exit(0);
   } catch (error) {

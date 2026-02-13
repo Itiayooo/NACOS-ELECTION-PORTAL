@@ -21,7 +21,7 @@ export const register = async (req: AuthRequest, res: Response) => {
     });
 
     if (!collegeEligible) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: 'Access denied. You are not in the eligibility list for this election.',
         reason: 'not_in_college_eligibility_list'
       });
@@ -29,7 +29,7 @@ export const register = async (req: AuthRequest, res: Response) => {
 
     // Verify email matches eligibility list
     if (collegeEligible.email.toLowerCase() !== email.toLowerCase()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: `Email mismatch. Please use your registered email: ${collegeEligible.email}`,
         expectedEmail: collegeEligible.email
       });
@@ -81,11 +81,75 @@ export const register = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// Original Login
+// export const login = async (req: AuthRequest, res: Response) => {
+//   try {
+//     const { email, password } = req.body;
+
+//     const user = await User.findOne({ email: email.toLowerCase() }).populate('department');
+//     if (!user) {
+//       return res.status(401).json({ message: 'Invalid credentials' });
+//     }
+
+//     const isMatch = await user.comparePassword(password);
+//     if (!isMatch) {
+//       return res.status(401).json({ message: 'Invalid credentials' });
+//     }
+
+//     // SKIP eligibility check for admins
+//     if (!user.isAdmin) {
+//       // Verify still eligible at college level
+//       const collegeEligible = await CollegeEligibility.findOne({
+//         studentId: user.studentId,
+//         isActive: true
+//       });
+
+//       if (!collegeEligible) {
+//         return res.status(403).json({ 
+//           message: 'Your access has been revoked. Please contact the electoral committee.',
+//           reason: 'eligibility_revoked'
+//         });
+//       }
+//     }
+
+//     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret', {
+//       expiresIn: '7d'
+//     });
+
+//     res.json({
+//       message: 'Login successful',
+//       token,
+//       user: {
+//         id: user._id,
+//         studentId: user.studentId,
+//         email: user.email,
+//         fullName: user.fullName,
+//         department: user.department,
+//         isAdmin: user.isAdmin,
+//         hasVoted: user.hasVoted
+//       }
+//     });
+//   } catch (error: any) {
+//     console.error('Login error:', error);
+//     res.status(500).json({ message: 'Login failed', error: error.message });
+//   }
+// };
+
+// Debug Login
 export const login = async (req: AuthRequest, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email: email.toLowerCase() }).populate('department');
+    console.log('Login attempt:', email);
+    console.log('Password provided:', password);
+
+    const user = await User.findOne({ email: email.toLowerCase() }).populate('department');    
+
+    if (user) {
+      console.log('User email:', user.email);  
+      console.log('User isAdmin:', user.isAdmin); 
+    }
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -95,18 +159,25 @@ export const login = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    console.log('User found:', user.email, 'Admin:', user.isAdmin, 'Student ID:', user.studentId);
+
     // SKIP eligibility check for admins
     if (!user.isAdmin) {
+      console.log('Checking eligibility for:', user.studentId);
+
       // Verify still eligible at college level
       const collegeEligible = await CollegeEligibility.findOne({
         studentId: user.studentId,
         isActive: true
       });
 
+      console.log('College eligible found:', !!collegeEligible);
+
       if (!collegeEligible) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           message: 'Your access has been revoked. Please contact the electoral committee.',
-          reason: 'eligibility_revoked'
+          reason: 'eligibility_revoked',
+          debug: { studentId: user.studentId, foundInDb: false }
         });
       }
     }
