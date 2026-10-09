@@ -5,9 +5,8 @@ import { connectDB } from './config/database';
 import authRoutes from './routes/auth';
 import voteRoutes from './routes/vote';
 import adminRoutes from './routes/admin';
-import eligibilityRoutes from './routes/eligibility';  // ADD THIS IMPORT
+import eligibilityRoutes from './routes/eligibility';
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
@@ -22,14 +21,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/vote', voteRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/eligibility', eligibilityRoutes);  // ADD THIS LINE
+app.use('/api/eligibility', eligibilityRoutes);
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'NACOS Voting System API is running' });
 });
 
-// Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error(err.stack);
   res.status(500).json({ 
@@ -38,14 +35,13 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// Start server
 const startServer = async () => {
   try {
     await connectDB();
     
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

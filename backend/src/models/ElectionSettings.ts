@@ -1,35 +1,36 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export interface IElectionSettings extends Document {
-  isElectionActive: boolean;
+export interface IElection extends Document {
+  title: string;
+  level: 'college' | 'department';
+  department?: mongoose.Types.ObjectId;
+  status: 'draft' | 'open' | 'closed';
+  resultVisibility: 'hidden' | 'live' | 'after-close';
   startDate?: Date;
   endDate?: Date;
-  allowedDepartments: mongoose.Types.ObjectId[];
-  resultVisibility: 'hidden' | 'live' | 'post-election';
 }
 
-const electionSettingsSchema = new Schema<IElectionSettings>({
-  isElectionActive: {
-    type: Boolean,
-    default: false
+const electionSchema = new Schema<IElection>(
+  {
+    title: { type: String, required: true, trim: true },
+    level: { type: String, enum: ['college', 'department'], required: true },
+    department: {
+      type: Schema.Types.ObjectId,
+      ref: 'Department',
+      required: function (this: IElection) {
+        return this.level === 'department';
+      },
+    },
+    status: { type: String, enum: ['draft', 'open', 'closed'], default: 'draft' },
+    resultVisibility: {
+      type: String,
+      enum: ['hidden', 'live', 'after-close'],
+      default: 'hidden',
+    },
+    startDate: { type: Date },
+    endDate: { type: Date },
   },
-  startDate: {
-    type: Date
-  },
-  endDate: {
-    type: Date
-  },
-  allowedDepartments: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Department'
-  }],
-  resultVisibility: {
-    type: String,
-    enum: ['hidden', 'live', 'post-election'],
-    default: 'hidden'
-  }
-}, {
-  timestamps: true
-});
+  { timestamps: true }
+);
 
-export default mongoose.model<IElectionSettings>('ElectionSettings', electionSettingsSchema);
+export default mongoose.model<IElection>('Election', electionSchema);

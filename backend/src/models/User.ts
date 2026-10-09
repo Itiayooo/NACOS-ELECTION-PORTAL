@@ -40,14 +40,7 @@ const userSchema = new Schema<IUser>({
     type: Schema.Types.ObjectId,
     ref: 'Department',
     required: true
-  },
-  hasVoted: {
-    type: Boolean,
-    default: false
-  },
-  votedAt: {
-    type: Date
-  },
+  },  
   isAdmin: {
     type: Boolean,
     default: false

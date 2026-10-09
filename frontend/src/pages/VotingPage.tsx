@@ -298,6 +298,7 @@ export default function VotingPage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting || Object.keys(selectedVotes).length !== (collegeOffices.length + departmentOffices.length)}
+                // disabled={submitting || Object.keys(selectedVotes).length !== (collegeOffices.length)}
                 className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (
